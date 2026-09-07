@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-const origin = 'https://atelier.test/';
+const origin = 'https://atelier.test/malzeit/';
 async function worker({ failAsset = false } = {}) {
   const code = await readFile('dist/client/sw.js', 'utf8');
   const handlers = {};
@@ -33,7 +33,8 @@ async function worker({ failAsset = false } = {}) {
       const url = new URL(key(req));
       if (failAsset && url.pathname.endsWith('.js'))
         return new Response('', { status: 503 });
-      const path = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+      const relativePath = url.pathname.slice(new URL(origin).pathname.length);
+      const path = relativePath || 'index.html';
       return new Response(await readFile('dist/client/' + path));
     },
     self: {
