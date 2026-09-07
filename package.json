@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "node --import ./scripts/graceful-exit.mjs node_modules/vinext/dist/cli.js build && node scripts/build-pwa.mjs",
+    "build": "node scripts/icons.mjs && node --import ./scripts/graceful-exit.mjs node_modules/vinext/dist/cli.js build && node scripts/build-pwa.mjs",
     "start": "node scripts/serve.mjs",
     "lint": "oxlint",
     "format": "oxfmt",

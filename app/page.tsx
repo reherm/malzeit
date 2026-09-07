@@ -65,7 +65,9 @@ export default function Home() {
     action: () => Promise<void>;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const mutationLock = useRef(false);
+  // Serialize IndexedDB writes. A fast double tap or an iOS resume can otherwise
+  // leave a form waiting behind a rejected "already saving" mutation.
+  const mutationQueue = useRef(Promise.resolve());
   const channel = useRef<BroadcastChannel | null>(null);
   const stateRef = useRef(state);
   useEffect(() => {
@@ -140,32 +142,35 @@ export default function Home() {
       navigator.serviceWorker.removeEventListener('message', message);
     };
   }, []);
-  const mutate: Mutate = useCallback(async (fn, message) => {
-    if (mutationLock.current)
-      throw new Error(
-        'Eine Änderung wird gerade gespeichert. Bitte kurz warten.',
-      );
-    mutationLock.current = true;
-    setBusy(true);
-    try {
-      const next = await updateAtelier(fn);
-      setState(next);
-      channel.current?.postMessage('changed');
-      if (message) setNotice(message);
-      return next;
-    } catch (e) {
-      const msg =
-        e instanceof DOMException && e.name === 'QuotaExceededError'
-          ? 'Der Gerätespeicher ist voll. Bitte eine Sicherung exportieren und Speicher freigeben.'
-          : e instanceof Error
-            ? e.message
-            : 'Die Änderung konnte nicht gespeichert werden.';
-      setNotice(msg);
-      throw new Error(msg);
-    } finally {
-      mutationLock.current = false;
-      setBusy(false);
-    }
+  const mutate: Mutate = useCallback((fn, message) => {
+    const run = async () => {
+      setBusy(true);
+      try {
+        const next = await updateAtelier(fn);
+        setState(next);
+        channel.current?.postMessage('changed');
+        if (message) setNotice(message);
+        return next;
+      } catch (e) {
+        const msg =
+          e instanceof DOMException && e.name === 'QuotaExceededError'
+            ? 'Der Gerätespeicher ist voll. Bitte eine Sicherung exportieren und Speicher freigeben.'
+            : e instanceof Error
+              ? e.message
+              : 'Die Änderung konnte nicht gespeichert werden.';
+        setNotice(msg);
+        throw new Error(msg);
+      } finally {
+        setBusy(false);
+      }
+    };
+    const queued = mutationQueue.current.then(run, run);
+    // A failed mutation must not poison the queue for every later edit.
+    mutationQueue.current = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queued;
   }, []);
   const attempt = async (action: () => Promise<unknown>) => {
     try {
