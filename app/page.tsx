@@ -28,6 +28,8 @@ import {
   activeDuration,
   beginTimer,
   duration,
+  estimatePaintingPrice,
+  formatPrice,
   formatDuration,
   freshAtelier,
   pauseTimer,
@@ -512,10 +514,29 @@ export default function Home() {
                                     .join(' · ') || 'Technik und Maße ergänzen'}
                                 </p>
                                 <div className="card-bottom">
-                                  <span>
-                                    <Clock3 size={15} />
-                                    {formatDuration(paintingTime(state, p.id))}
-                                  </span>
+                                  <div className="card-metrics">
+                                    <span>
+                                      <Clock3 size={15} />
+                                      {formatDuration(
+                                        paintingTime(state, p.id),
+                                      )}
+                                    </span>
+                                    {p.priceEstimateEnabled && (
+                                      <span className="card-price">
+                                        {estimatePaintingPrice(
+                                          p,
+                                          paintingTime(state, p.id),
+                                        ).total
+                                          ? `≈ ${formatPrice(
+                                              estimatePaintingPrice(
+                                                p,
+                                                paintingTime(state, p.id),
+                                              ).total,
+                                            )}`
+                                          : 'Preis noch offen'}
+                                      </span>
+                                    )}
+                                  </div>
                                   <button
                                     className="icon-button start-button"
                                     aria-label={`Timer für ${p.title} starten`}
@@ -591,6 +612,7 @@ export default function Home() {
       </main>
       {modal?.kind === 'painting' && (
         <PaintingEditor
+          state={state}
           existing={state.paintings.find((p) => p.id === modal.id)}
           mutate={mutate}
           close={() => setModal(null)}

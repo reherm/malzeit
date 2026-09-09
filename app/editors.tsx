@@ -7,11 +7,14 @@ import {
   localDateTime,
   duration,
   parseDuration,
+  estimatePaintingPrice,
+  formatPrice,
   type Atelier,
   type Painting,
   type Session,
   type Photo,
 } from '@/lib/atelier';
+import { Switch } from '@/components/ui/switch';
 import {
   Choice,
   Field,
@@ -26,11 +29,13 @@ import {
 } from './ui';
 
 export function PaintingEditor({
+  state,
   existing,
   mutate,
   close,
   done,
 }: {
+  state: Atelier;
   existing?: Painting;
   mutate: Mutate;
   close: () => void;
@@ -39,6 +44,9 @@ export function PaintingEditor({
   const [title, setTitle] = useState(existing?.title ?? '');
   const [dimensions, setDimensions] = useState(existing?.dimensions ?? '');
   const [technique, setTechnique] = useState(existing?.technique ?? '');
+  const [priceEstimateEnabled, setPriceEstimateEnabled] = useState(
+    existing?.priceEstimateEnabled ?? false,
+  );
   const [status, setStatus] = useState(existing?.status ?? 'working');
   const [photo, setPhoto] = useState('');
   const [error, setError] = useState('');
@@ -69,6 +77,7 @@ export function PaintingEditor({
                       title: title.trim(),
                       dimensions: dimensions.trim(),
                       technique: technique.trim(),
+                      priceEstimateEnabled: priceEstimateEnabled || undefined,
                       status,
                     }
                   : p,
@@ -84,6 +93,7 @@ export function PaintingEditor({
                 title: title.trim(),
                 dimensions: dimensions.trim(),
                 technique: technique.trim(),
+                priceEstimateEnabled: priceEstimateEnabled || undefined,
                 status,
                 createdAt: Date.now(),
                 photos: firstPhoto ? [firstPhoto] : [],
@@ -100,6 +110,14 @@ export function PaintingEditor({
       setSaving(false);
     }
   };
+  const estimate = estimatePaintingPrice(
+    { dimensions, technique },
+    existing
+      ? state.sessions
+          .filter((session) => session.paintingId === existing.id)
+          .reduce((sum, session) => sum + duration(session), 0)
+      : 0,
+  );
   return (
     <ModalFrame
       title={existing ? 'Bild bearbeiten' : 'Ein neues Bild'}
@@ -149,6 +167,34 @@ export function PaintingEditor({
             ]}
           />
         </Field>
+        <div className="estimate-option">
+          <div>
+            <label htmlFor="price-estimate">Preisschätzung anzeigen</label>
+            <p>
+              Automatisch aus Malzeit, Bildgröße und Technik. Die Malzeit hat
+              dabei den größten Anteil.
+            </p>
+          </div>
+          <Switch
+            id="price-estimate"
+            checked={priceEstimateEnabled}
+            onCheckedChange={setPriceEstimateEnabled}
+            aria-label="Preisschätzung anzeigen"
+          />
+        </div>
+        {priceEstimateEnabled && (
+          <div className="estimate-preview" aria-live="polite">
+            <span>Aktuelle Schätzung</span>
+            <strong>
+              {estimate.total ? formatPrice(estimate.total) : 'Noch offen'}
+            </strong>
+            <small>
+              {existing
+                ? 'Wird mit jeder gespeicherten Malsitzung neu berechnet.'
+                : 'Die erste Schätzung entsteht aus den Maßen und später aus deiner erfassten Malzeit.'}
+            </small>
+          </div>
+        )}
         {!existing && (
           <div className="field">
             <span>

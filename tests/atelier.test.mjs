@@ -14,6 +14,9 @@ import {
   totalInPeriod,
   localDate,
   validateBackup,
+  paintingArea,
+  techniquePriceFactor,
+  estimatePaintingPrice,
 } from '../lib/atelier.ts';
 const hour = 3600000;
 const base = () => ({
@@ -197,4 +200,35 @@ void test('Clock changes cannot cause invalid pause/stop records', () => {
   assert.throws(() => pauseTimer(s, 4000));
   assert.throws(() => stopTimer(s, 'x', 4000));
   assert.throws(() => resumeTimer(pauseTimer(s, 6000), 5000));
+});
+
+void test('Price estimate is driven mainly by time, with format and technique', () => {
+  assert.equal(paintingArea('50 × 70 cm'), 0.35);
+  assert.equal(paintingArea('500 x 700 mm'), 0.35);
+  assert.equal(paintingArea('0,5 × 0,7 m'), 0.35);
+  assert.equal(paintingArea('DIN A3'), null);
+  assert.equal(techniquePriceFactor('Öl auf Leinwand'), 1.35);
+  assert.equal(techniquePriceFactor('Aquarell auf Papier'), 0.75);
+  assert.deepEqual(
+    estimatePaintingPrice(
+      { dimensions: '50 × 70 cm', technique: 'Acryl auf Leinwand' },
+      10 * hour,
+    ),
+    {
+      total: 335,
+      labor: 300,
+      formatAndTechnique: 35,
+      areaSquareMeters: 0.35,
+      techniqueFactor: 1,
+    },
+  );
+});
+
+void test('Backups accept an optional price estimate flag and reject wrong types', () => {
+  const enabled = base();
+  enabled.paintings[0].priceEstimateEnabled = true;
+  assert.deepEqual(validateBackup(enabled), enabled);
+  const invalid = base();
+  invalid.paintings[0].priceEstimateEnabled = 'yes';
+  assert.throws(() => validateBackup(invalid));
 });

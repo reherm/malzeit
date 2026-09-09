@@ -7,13 +7,21 @@ import {
   Clock3,
   Images,
   CalendarDays,
+  BadgeEuro,
   Play,
   Plus,
   Camera,
   Trash2,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { formatDuration, type Atelier, type Painting } from '@/lib/atelier';
+import {
+  estimatePaintingPrice,
+  formatDuration,
+  formatPrice,
+  PRICE_ESTIMATE_HOURLY_RATE,
+  type Atelier,
+  type Painting,
+} from '@/lib/atelier';
 import {
   cover,
   paintingTime,
@@ -50,6 +58,8 @@ export function PaintingDetail({
   ask: Ask;
   mutate: Mutate;
 }) {
+  const totalTime = paintingTime(state, painting.id);
+  const priceEstimate = estimatePaintingPrice(painting, totalTime);
   return (
     <>
       <button className="text-button back" onClick={back}>
@@ -112,9 +122,26 @@ export function PaintingDetail({
             {painting.status === 'working' ? 'In Arbeit' : 'Fertiggestellt'}
           </span>
           <p className="muted">Gesamte Malzeit</p>
-          <div className="total-display">
-            {formatDuration(paintingTime(state, painting.id))}
-          </div>
+          <div className="total-display">{formatDuration(totalTime)}</div>
+          {painting.priceEstimateEnabled && (
+            <div className="price-estimate">
+              <span>
+                <BadgeEuro size={17} />
+                Unverbindliche Preisschätzung
+              </span>
+              <strong>
+                {priceEstimate.total
+                  ? `ca. ${formatPrice(priceEstimate.total)}`
+                  : 'Noch nicht berechenbar'}
+              </strong>
+              <small>
+                {formatPrice(PRICE_ESTIMATE_HOURLY_RATE)} je Malstunde
+                {priceEstimate.areaSquareMeters !== null
+                  ? ` plus ${formatPrice(priceEstimate.formatAndTechnique)} für Format und Technik`
+                  : '. Ergänze Maße wie „50 × 70 cm“ für den Formatanteil.'}
+              </small>
+            </div>
+          )}
           <div className="painting-meta">
             <span>
               <Clock3 size={16} />

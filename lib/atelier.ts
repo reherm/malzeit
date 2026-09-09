@@ -5,11 +5,89 @@ export type Painting = {
   title: string;
   dimensions: string;
   technique: string;
+  priceEstimateEnabled?: boolean;
   status: 'working' | 'finished';
   createdAt: number;
   photos: Photo[];
   coverId?: string;
 };
+
+export type PriceEstimate = {
+  total: number;
+  labor: number;
+  formatAndTechnique: number;
+  areaSquareMeters: number | null;
+  techniqueFactor: number;
+};
+
+export const PRICE_ESTIMATE_HOURLY_RATE = 30;
+const PRICE_ESTIMATE_AREA_RATE = 100;
+
+export function paintingArea(dimensions: string): number | null {
+  const match =
+    /(\d+(?:[.,]\d+)?)\s*(?:x|×)\s*(\d+(?:[.,]\d+)?)\s*(mm|cm|m)?/i.exec(
+      dimensions,
+    );
+  if (!match) return null;
+  const width = Number(match[1].replace(',', '.'));
+  const height = Number(match[2].replace(',', '.'));
+  if (!(width > 0) || !(height > 0)) return null;
+  const unit = match[3]?.toLowerCase() ?? 'cm';
+  const metersPerUnit = unit === 'm' ? 1 : unit === 'mm' ? 0.001 : 0.01;
+  const area =
+    Math.round(width * height * metersPerUnit * metersPerUnit * 1000000) /
+    1000000;
+  return area <= 100 ? area : null;
+}
+
+export function techniquePriceFactor(technique: string): number {
+  const value = technique.toLocaleLowerCase('de-DE');
+  if (['öl', 'oel', 'encaustic', 'wachs'].some((word) => value.includes(word)))
+    return 1.35;
+  if (
+    ['mischtechnik', 'mixed media', 'collage', 'pastell'].some((word) =>
+      value.includes(word),
+    )
+  )
+    return 1.2;
+  if (
+    ['aquarell', 'zeichnung', 'bleistift', 'kohle', 'tusche'].some((word) =>
+      value.includes(word),
+    )
+  )
+    return 0.75;
+  if (['digital', 'procreate'].some((word) => value.includes(word)))
+    return 0.35;
+  return 1;
+}
+
+export function estimatePaintingPrice(
+  painting: Pick<Painting, 'dimensions' | 'technique'>,
+  durationMs: number,
+): PriceEstimate {
+  const areaSquareMeters = paintingArea(painting.dimensions);
+  const techniqueFactor = techniquePriceFactor(painting.technique);
+  const labor =
+    (Math.max(0, durationMs) / 3600000) * PRICE_ESTIMATE_HOURLY_RATE;
+  const formatAndTechnique =
+    (areaSquareMeters ?? 0) * PRICE_ESTIMATE_AREA_RATE * techniqueFactor;
+  const rawTotal = labor + formatAndTechnique;
+  return {
+    total: rawTotal > 0 ? Math.max(5, Math.round(rawTotal / 5) * 5) : 0,
+    labor,
+    formatAndTechnique,
+    areaSquareMeters,
+    techniqueFactor,
+  };
+}
+
+export function formatPrice(value: number): string {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 export type Session = {
   id: string;
   paintingId: string;
@@ -231,6 +309,10 @@ export function validateBackup(value: unknown): Atelier {
       !p.title.trim() ||
       !str(p.dimensions, 200) ||
       !str(p.technique, 200) ||
+      !(
+        p.priceEstimateEnabled === undefined ||
+        typeof p.priceEstimateEnabled === 'boolean'
+      ) ||
       !['working', 'finished'].includes(String(p.status)) ||
       !finite(p.createdAt) ||
       !Array.isArray(p.photos)
