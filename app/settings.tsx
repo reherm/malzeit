@@ -247,6 +247,12 @@ export function Settings({
           kannst den Beginn im Timer ändern und nach dem Stoppen auch das Ende
           korrigieren.
         </p>
+        <p className="hint">
+          Erlaubst du beim ersten Start Mitteilungen, zeigt Android während des
+          Timers ein Symbol in der Statusleiste. Auf dem iPhone erscheint
+          stattdessen eine Markierung am Malzeit-App-Symbol; ein eigenes
+          Statusleisten-Symbol erlaubt iOS für Web-Apps nicht.
+        </p>
       </div>
     </ModalFrame>
   );

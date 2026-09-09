@@ -5,7 +5,9 @@ Eine deutschsprachige, auf dem iPhone installierbare PWA für ein persönliches 
 ## Funktionen
 
 - Bilder mit Titel, Maßen, Technik und Status; Galerie mit Gesamtzeit.
+- Optionale Preisschätzung pro Bild aus Malzeit, Format und Technik.
 - Ein dauerhafter Timer, Pause/Fortsetzen, Startkorrektur während des Laufens.
+- Systemanzeige für aktive Timer: laufende Benachrichtigung mit Statussymbol auf Android, App-Symbol-Markierung auf iPhone und unterstützten Plattformen.
 - Stoppen speichert sofort; anschließend lassen sich Beginn und Ende korrigieren. Pausen bleiben erhalten und werden auf den korrigierten Zeitraum begrenzt.
 - Zeitnachträge als Beginn/Ende oder Datum und Stunden:Minuten. Alle Sitzungen sind bearbeitbar und löschbar.
 - Kamera/Fotomediathek, Fortschrittsfotos mit Datum und Beschreibung, frei wählbares Titelbild.
@@ -23,11 +25,17 @@ Node >=22.13, npm. `npm ci`, danach `npm run dev` für Entwicklung.
 
 Der Windows-Build lässt Node nach dem CLI-Abschluss regulär auslaufen: Das verhindert den bekannten libuv-Absturz beim sofortigen `process.exit` nach HTTP-Prerendering. Fehlercodes bleiben erhalten. Siehe https://github.com/nodejs/node/issues/56645.
 
+## Versionierung
+
+Jede ausgelieferte funktionale Änderung erhöht vor dem Commit die Version in `package.json` und `package-lock.json` nach Semantic Versioning. Die App zeigt diese Versionsnummer automatisch im Seitenfuß an.
+
 ## Auf dem iPhone
 
 Die veröffentlichte HTTPS-Adresse in Safari öffnen → Teilen → Zum Home-Bildschirm → falls angeboten „Als Web-App öffnen“ → Hinzufügen. Die installierte App einmal online öffnen und in den Einstellungen auf „Offline bereit“ achten. Danach funktionieren Start und Nutzung ohne Internet.
 
 Apple-Anleitung: https://support.apple.com/de-de/guide/iphone/iphea86e5236/ios
+
+Beim ersten Timerstart fragt Malzeit nach Mitteilungen. Auf Android hält eine laufende Benachrichtigung das Timer-Symbol in der Statusleiste sichtbar. iOS erlaubt Web-Apps kein eigenes Symbol in der Statusleiste und keine Live Activity; dort markiert Malzeit stattdessen das App-Symbol auf dem Home-Bildschirm. Wird die Berechtigung abgelehnt, läuft der Timer trotzdem normal weiter.
 
 Möglichst von Anfang an die installierte App benutzen: Safari und die Home-Bildschirm-App können unterschiedliche Speicher verwenden. Bei Bedarf per Export/Import übertragen. Der Timer benutzt absolute Zeitstempel, keine dauerhaft im Hintergrund ausgeführte iOS-App. Ein manuell verstellter Gerätezeitpunkt kann die verstrichene Zeit verändern; Start und Ende sind korrigierbar.
 

@@ -58,6 +58,11 @@ self.addEventListener('fetch',event=>{
  return fetch(request);
 })());
 });
+self.addEventListener('notificationclick',event=>{event.waitUntil((async()=>{
+ const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+ for(const client of windows){if(client.url.startsWith(ROOT)){await client.focus();client.postMessage({type:'MALZEIT_TIMER_INDICATOR_CLICKED'});return}}
+ if(self.clients.openWindow)await self.clients.openWindow(ROOT);
+})())});
 `;
 await writeFile(join(output, 'sw.js'), worker);
 await writeFile(join(output, '.nojekyll'), '');

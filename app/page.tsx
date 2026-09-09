@@ -50,6 +50,12 @@ import { PaintingDetail, type Modal } from './painting-detail';
 import { SessionList, Statistics } from './statistics';
 import { Settings } from './settings';
 import { paintingTime, cover, uid, type Mutate } from './ui';
+import packageInfo from '@/package.json';
+import {
+  clearTimerIndicator,
+  requestTimerIndicatorPermission,
+  showTimerIndicator,
+} from '@/lib/timer-indicator';
 
 export default function Home() {
   const [state, setState] = useState<Atelier>(freshAtelier);
@@ -61,6 +67,7 @@ export default function Home() {
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(Date.now);
   const [offlineReady, setOfflineReady] = useState(false);
+  const [indicatorRevision, setIndicatorRevision] = useState(0);
   const [confirmation, setConfirmation] = useState<{
     title: string;
     description: string;
@@ -95,6 +102,7 @@ export default function Home() {
     const visibility = () => {
       if (document.visibilityState === 'visible') {
         setNow(Date.now());
+        setIndicatorRevision((value) => value + 1);
         void refresh();
       }
     };
@@ -121,6 +129,8 @@ export default function Home() {
     const message = (e: MessageEvent) => {
       if (e.data?.type === 'MALZEIT_OFFLINE_READY' && alive)
         setOfflineReady(true);
+      if (e.data?.type === 'MALZEIT_TIMER_INDICATOR_CLICKED' && alive)
+        setIndicatorRevision((value) => value + 1);
     };
     navigator.serviceWorker.addEventListener('message', message);
     void navigator.serviceWorker
@@ -185,12 +195,33 @@ export default function Home() {
     action: () => Promise<void>,
   ) => setConfirmation({ title, description, action });
   const start = (id: string) =>
-    void attempt(() =>
-      mutate(
+    void attempt(async () => {
+      // Ask while the tap still counts as a direct user interaction on iOS.
+      const permission =
+        process.env.NODE_ENV === 'production'
+          ? requestTimerIndicatorPermission()
+          : Promise.resolve<'unsupported'>('unsupported');
+      const next = await mutate(
         (s) => beginTimer(s, id),
         'Timer gestartet. Du kannst die App schließen.',
-      ),
-    );
+      );
+      const indicatorPermission = await permission;
+      const active = next.active;
+      const painting = next.paintings.find((item) => item.id === id);
+      if (active && painting)
+        await showTimerIndicator({
+          paintingTitle: painting.title,
+          startedAt: active.start,
+          paused: active.pausedAt !== null,
+        });
+      if (
+        process.env.NODE_ENV === 'production' &&
+        indicatorPermission === 'denied'
+      )
+        setNotice(
+          'Timer gestartet. Die Systemanzeige ist in den Geräteeinstellungen deaktiviert.',
+        );
+    });
   const stop = () =>
     void attempt(async () => {
       const id = uid();
@@ -205,6 +236,16 @@ export default function Home() {
   const activePainting = state.paintings.find(
     (p) => p.id === state.active?.paintingId,
   );
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' || !ready) return;
+    if (state.active && activePainting)
+      void showTimerIndicator({
+        paintingTitle: activePainting.title,
+        startedAt: state.active.start,
+        paused: state.active.pausedAt !== null,
+      });
+    else void clearTimerIndicator();
+  }, [activePainting, indicatorRevision, ready, state.active]);
   const painting = state.paintings.find((p) => p.id === selected);
   const total = state.sessions.reduce((sum, s) => sum + duration(s), 0);
   const weekStart = new Date(now);
@@ -603,7 +644,7 @@ export default function Home() {
           </>
         )}
         <footer className="page-footer">
-          <span>Deine Bilder. Deine Zeit.</span>
+          <span>Deine Bilder. Deine Zeit. · Version {packageInfo.version}</span>
           <button onClick={() => setModal({ kind: 'settings' })}>
             <ShieldCheck size={14} />
             Lokal gespeichert · Sicherung & Installation

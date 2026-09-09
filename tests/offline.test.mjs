@@ -9,6 +9,7 @@ async function worker({ failAsset = false } = {}) {
   const stores = new Map();
   let online = true;
   let claims = 0;
+  let opened = '';
   const key = (r) => (typeof r === 'string' ? r : r.url);
   const caches = {
     open: async (name) => {
@@ -47,6 +48,9 @@ async function worker({ failAsset = false } = {}) {
           claims++;
         },
         matchAll: async () => [],
+        openWindow: async (url) => {
+          opened = url;
+        },
       },
     },
   });
@@ -54,6 +58,7 @@ async function worker({ failAsset = false } = {}) {
   return {
     stores,
     claims: () => claims,
+    opened: () => opened,
     offline: () => {
       online = false;
     },
@@ -114,4 +119,9 @@ void test('Service worker does not intercept writes or other origins', async () 
     }),
     undefined,
   );
+});
+void test('Tapping the timer notification reopens the app', async () => {
+  const w = await worker();
+  await w.event('notificationclick');
+  assert.equal(w.opened(), origin);
 });
