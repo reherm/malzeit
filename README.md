@@ -5,6 +5,9 @@ Eine deutschsprachige, auf dem iPhone installierbare PWA für ein persönliches 
 ## Funktionen
 
 - Bilder mit Titel, Maßen, Technik und Status; Galerie mit Gesamtzeit.
+- Ideenbereich mit Notizen, mehreren Referenzbildern und Skizzen; Skizzen können auch direkt mit Finger, Stift oder Maus gezeichnet werden.
+- Ideen durchsuchen und filtern, Tags und Favoriten, geplante Maße und Technik, Inspirationslink und nächster Schritt.
+- Aus einer Idee ein Bild anlegen; die Inspirationssammlung bleibt mit dem Bild verbunden. Referenzen werden nicht als Fortschrittsfotos oder Malzeit gezählt.
 - Optionale Preisschätzung pro Bild aus Malzeit, Format und Technik.
 - Ein dauerhafter Timer, Pause/Fortsetzen, Startkorrektur während des Laufens.
 - Systemanzeige für aktive Timer: laufende Benachrichtigung mit Statussymbol auf Android, App-Symbol-Markierung auf iPhone und unterstützten Plattformen.
@@ -13,6 +16,7 @@ Eine deutschsprachige, auf dem iPhone installierbare PWA für ein persönliches 
 - Kamera/Fotomediathek, Fortschrittsfotos mit Datum und Beschreibung, frei wählbares Titelbild.
 - Wochen-, Monats- und Jahresstatistik mit Aufteilung von Sitzungen über Tagesgrenzen.
 - Vollständiger JSON-Export und geprüfter, atomarer Import mit Fotos und aktivem Timer.
+- Ideen, Skizzen und Notizen sind in Sicherungen enthalten. Bestehende Daten und ältere Sicherungen ohne Ideen bleiben nutzbar.
 - Offline-Start nach einmaliger Online-Einrichtung; vollständiger, versionierter Cache der App-Dateien.
 
 ## Lokal starten

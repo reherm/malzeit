@@ -12,6 +12,7 @@ import {
   Plus,
   Camera,
   Trash2,
+  Lightbulb,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -21,6 +22,7 @@ import {
   PRICE_ESTIMATE_HOURLY_RATE,
   type Atelier,
   type Painting,
+  type PaintingIdea,
 } from '@/lib/atelier';
 import {
   cover,
@@ -32,6 +34,8 @@ import {
 } from './ui';
 import { SessionList } from './statistics';
 export type Modal =
+  | { kind: 'idea'; id?: string }
+  | { kind: 'idea-image'; ideaId: string; id?: string }
   | { kind: 'painting'; id?: string }
   | { kind: 'session'; paintingId?: string; id?: string }
   | { kind: 'photo'; paintingId: string; id?: string }
@@ -48,6 +52,8 @@ export function PaintingDetail({
   open,
   ask,
   mutate,
+  sourceIdea,
+  openIdea,
 }: {
   painting: Painting;
   state: Atelier;
@@ -57,6 +63,8 @@ export function PaintingDetail({
   open: (m: Modal) => void;
   ask: Ask;
   mutate: Mutate;
+  sourceIdea?: PaintingIdea;
+  openIdea: (id: string) => void;
 }) {
   const totalTime = paintingTime(state, painting.id);
   const priceEstimate = estimatePaintingPrice(painting, totalTime);
@@ -189,6 +197,20 @@ export function PaintingDetail({
           </button>
         </section>
       </div>
+      {sourceIdea && (
+        <div className="idea-origin">
+          <div>
+            <Lightbulb size={20} />
+            <span>
+              Die Idee zu diesem Bild: <strong>{sourceIdea.title}</strong>
+            </span>
+          </div>
+          <button className="secondary" onClick={() => openIdea(sourceIdea.id)}>
+            Notizen & Inspiration öffnen
+            <ArrowUpRight size={16} />
+          </button>
+        </div>
+      )}
       <Tabs defaultValue="progress" className="detail-tabs">
         <TabsList className="main-tabs" variant="line">
           <TabsTrigger value="progress">
@@ -311,6 +333,11 @@ export function PaintingDetail({
                     paintings: s.paintings.filter((p) => p.id !== painting.id),
                     sessions: s.sessions.filter(
                       (item) => item.paintingId !== painting.id,
+                    ),
+                    ideas: s.ideas.map((item) =>
+                      item.paintingId === painting.id
+                        ? { ...item, paintingId: undefined }
+                        : item,
                     ),
                   };
                 }, 'Bild gelöscht.');

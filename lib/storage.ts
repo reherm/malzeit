@@ -1,4 +1,4 @@
-import { freshAtelier, type Atelier } from './atelier';
+import { freshAtelier, withIdeas, type Atelier } from './atelier';
 let database: Promise<IDBDatabase> | undefined;
 function db(): Promise<IDBDatabase> {
   if (!database)
@@ -32,7 +32,8 @@ export async function readAtelier(): Promise<Atelier> {
       .transaction('atelier', 'readonly')
       .objectStore('atelier')
       .get('state');
-    request.onsuccess = () => resolve(request.result ?? freshAtelier());
+    request.onsuccess = () =>
+      resolve(withIdeas(request.result ?? freshAtelier()));
     request.onerror = () => reject(request.error);
   });
 }
@@ -49,7 +50,7 @@ export async function updateAtelier(
     let failure: unknown;
     request.onsuccess = () => {
       try {
-        result = update(request.result ?? freshAtelier());
+        result = update(withIdeas(request.result ?? freshAtelier()));
         store.put(result, 'state');
       } catch (error) {
         failure = error;

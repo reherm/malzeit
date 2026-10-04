@@ -17,6 +17,9 @@ import {
   paintingArea,
   techniquePriceFactor,
   estimatePaintingPrice,
+  paintingFromIdea,
+  safeSourceUrl,
+  withIdeas,
 } from '../lib/atelier.ts';
 const hour = 3600000;
 const base = () => ({
@@ -32,6 +35,142 @@ const base = () => ({
       photos: [],
     },
   ],
+});
+
+const ideaState = () => ({
+  ...base(),
+  ideas: [
+    {
+      id: 'idea1',
+      title: 'Licht am See',
+      notes: 'Warme Schatten',
+      nextStep: 'Farben testen',
+      dimensions: '40 × 60 cm',
+      technique: 'Öl',
+      sourceUrl: 'https://example.com/reference',
+      tags: ['Licht', 'Landschaft'],
+      favorite: true,
+      createdAt: 1000,
+      updatedAt: 2000,
+      images: [
+        {
+          id: 'ref1',
+          kind: 'reference',
+          data: 'data:image/jpeg;base64,YQ==',
+          date: '2026-10-04',
+          note: 'Lichtstimmung',
+        },
+        {
+          id: 'sketch1',
+          kind: 'sketch',
+          data: 'data:image/png;base64,YQ==',
+          date: '2026-10-04',
+          note: 'Komposition',
+        },
+      ],
+    },
+  ],
+});
+
+void test('Existing stores and backups gain an empty ideas collection without losing data', () => {
+  const old = base();
+  delete old.ideas;
+  const before = structuredClone(old);
+  assert.deepEqual(validateBackup(old), { ...old, ideas: [] });
+  assert.deepEqual(withIdeas(old), { ...old, ideas: [] });
+  assert.deepEqual(old, before);
+});
+
+void test('Idea backup round trip preserves notes, reference images, sketches and painting links', () => {
+  const state = paintingFromIdea(ideaState(), 'idea1', 'p2', 3000);
+  assert.deepEqual(validateBackup(JSON.parse(JSON.stringify(state))), state);
+});
+
+void test('Turning an idea into a painting preserves inspiration and adds no painting time or progress photos', () => {
+  const before = ideaState();
+  const state = paintingFromIdea(before, 'idea1', 'p2', 3000);
+  assert.deepEqual(state.paintings[1], {
+    id: 'p2',
+    title: 'Licht am See',
+    dimensions: '40 × 60 cm',
+    technique: 'Öl',
+    status: 'working',
+    createdAt: 3000,
+    photos: [],
+  });
+  assert.deepEqual(state.ideas[0].images, before.ideas[0].images);
+  assert.equal(state.ideas[0].notes, before.ideas[0].notes);
+  assert.equal(state.ideas[0].paintingId, 'p2');
+  assert.equal(state.sessions.length, 0);
+  assert.equal(before.ideas[0].paintingId, undefined);
+  assert.throws(() => paintingFromIdea(state, 'idea1', 'p3', 4000));
+  assert.throws(() => paintingFromIdea(before, 'missing', 'p3', 4000));
+  assert.throws(() => paintingFromIdea(before, 'idea1', 'p1', 4000));
+});
+
+void test('Malformed ideas, image data, duplicate IDs, tags, unsafe URLs and broken painting links are rejected', () => {
+  for (const alter of [
+    (s) => {
+      s.ideas = null;
+    },
+    (s) => {
+      s.ideas.push(structuredClone(s.ideas[0]));
+    },
+    (s) => {
+      s.ideas[0].title = ' ';
+    },
+    (s) => {
+      s.ideas[0].favorite = 'yes';
+    },
+    (s) => {
+      s.ideas[0].notes = 42;
+    },
+    (s) => {
+      s.ideas[0].paintingId = 'missing';
+    },
+    (s) => {
+      s.ideas[0].sourceUrl = 'javascript:alert(1)';
+    },
+    (s) => {
+      s.ideas[0].images[0].data = 'data:image/svg+xml;base64,YQ==';
+    },
+    (s) => {
+      s.ideas[0].images[0].kind = 'other';
+    },
+    (s) => {
+      s.ideas[0].images[0].date = '2026-02-30';
+    },
+    (s) => {
+      s.ideas[0].images.push(structuredClone(s.ideas[0].images[0]));
+    },
+    (s) => {
+      s.ideas[0].tags = ['Licht', 'Licht'];
+    },
+    (s) => {
+      s.ideas[0].tags = [' '];
+    },
+    (s) => {
+      s.ideas[0].updatedAt = 0;
+    },
+  ]) {
+    const state = ideaState();
+    alter(state);
+    assert.throws(() => validateBackup(state));
+  }
+});
+
+void test('Source links allow only HTTP(S) URLs without embedded credentials', () => {
+  for (const url of ['', 'https://example.com/sketch', 'http://example.com'])
+    assert.equal(safeSourceUrl(url), true);
+  for (const url of [
+    'https:example.com',
+    'javascript:alert(1)',
+    'data:text/html,test',
+    'file:///test',
+    '/relative',
+    'https://user:password@example.com',
+  ])
+    assert.equal(safeSourceUrl(url), false);
 });
 void test('A timer survives JSON restoration and a closed app for days', () => {
   const state = beginTimer(base(), 'p1', 1000);

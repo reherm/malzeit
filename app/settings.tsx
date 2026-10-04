@@ -105,7 +105,7 @@ export function Settings({
         );
       ask(
         'Sicherung wiederherstellen?',
-        `${imported.paintings.length} Bilder, ${imported.sessions.length} Malsitzungen und ${imported.paintings.reduce((sum, p) => sum + p.photos.length, 0)} Fotos ersetzen den aktuellen Stand vollständig. Exportiere vorher eine Sicherung, falls du die bisherigen Daten behalten möchtest.${imported.active ? ' Der gesicherte Timer wird fortgesetzt; seine Zeit kannst du danach korrigieren.' : ''}`,
+        `${imported.paintings.length} Bilder, ${imported.ideas.length} Ideen, ${imported.sessions.length} Malsitzungen und ${imported.paintings.reduce((sum, p) => sum + p.photos.length, 0) + imported.ideas.reduce((sum, idea) => sum + idea.images.length, 0)} Fotos / Skizzen ersetzen den aktuellen Stand vollständig. Exportiere vorher eine Sicherung, falls du die bisherigen Daten behalten möchtest.${imported.active ? ' Der gesicherte Timer wird fortgesetzt; seine Zeit kannst du danach korrigieren.' : ''}`,
         async () => {
           await mutate((s) => {
             if (s.active)
@@ -138,20 +138,26 @@ export function Settings({
           Deine Daten
         </h3>
         <p>
-          Alle Bilder, Fotos und Zeiten bleiben auf diesem Gerät. Es gibt kein
-          Konto und keine automatische Cloud-Sicherung.
+          Alle Bilder, Ideen, Skizzen, Notizen und Zeiten bleiben auf diesem
+          Gerät. Es gibt kein Konto und keine automatische Cloud-Sicherung.
         </p>
         <p>
           Speichere regelmäßig eine Sicherung in „Dateien“, zum Beispiel in
-          iCloud Drive. Sie enthält auch deine Fotos und einen eventuell
-          laufenden Timer. Beim Löschen der Website-Daten können die lokalen
-          Daten verloren gehen.
+          iCloud Drive. Sie enthält auch deine Ideen, Fotos, Skizzen und einen
+          eventuell laufenden Timer. Beim Löschen der Website-Daten können die
+          lokalen Daten verloren gehen.
         </p>
         <div className="backup-summary">
           <span>{state.paintings.length} Bilder</span>
+          <span>{state.ideas.length} Ideen</span>
           <span>{state.sessions.length} Sitzungen</span>
           <span>
-            {state.paintings.reduce((sum, p) => sum + p.photos.length, 0)} Fotos
+            {state.paintings.reduce((sum, p) => sum + p.photos.length, 0) +
+              state.ideas.reduce(
+                (sum, idea) => sum + idea.images.length,
+                0,
+              )}{' '}
+            Fotos / Skizzen
           </span>
         </div>
         <button

@@ -14,6 +14,7 @@ import {
   Pencil,
   X,
   ShieldCheck,
+  Lightbulb,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -49,6 +50,7 @@ import {
 import { PaintingDetail, type Modal } from './painting-detail';
 import { SessionList, Statistics } from './statistics';
 import { Settings } from './settings';
+import { Ideas, IdeaDetail, IdeaEditor, IdeaImageEditor } from './ideas';
 import { paintingTime, cover, uid, type Mutate } from './ui';
 import packageInfo from '@/package.json';
 import {
@@ -63,6 +65,7 @@ export default function Home() {
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState('paintings');
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedIdea, setSelectedIdea] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(Date.now);
@@ -247,6 +250,17 @@ export default function Home() {
     else void clearTimerIndicator();
   }, [activePainting, indicatorRevision, ready, state.active]);
   const painting = state.paintings.find((p) => p.id === selected);
+  const idea = state.ideas.find((item) => item.id === selectedIdea);
+  const openIdea = (id: string) => {
+    setSelected(null);
+    setSelectedIdea(id);
+    setTab('ideas');
+  };
+  const openPainting = (id: string) => {
+    setSelectedIdea(null);
+    setSelected(id);
+    setTab('paintings');
+  };
   const total = state.sessions.reduce((sum, s) => sum + duration(s), 0);
   const weekStart = new Date(now);
   weekStart.setHours(0, 0, 0, 0);
@@ -327,6 +341,7 @@ export default function Home() {
           onClick={(e) => {
             e.preventDefault();
             setSelected(null);
+            setSelectedIdea(null);
             setTab('paintings');
           }}
         >
@@ -378,7 +393,7 @@ export default function Home() {
                 <button
                   className="timer-painting"
                   aria-label="Bild des aktiven Timers öffnen"
-                  onClick={() => setSelected(activePainting.id)}
+                  onClick={() => openPainting(activePainting.id)}
                 >
                   <span
                     className={
@@ -447,6 +462,28 @@ export default function Home() {
                 open={setModal}
                 ask={ask}
                 mutate={mutate}
+                sourceIdea={state.ideas.find(
+                  (item) => item.paintingId === painting.id,
+                )}
+                openIdea={openIdea}
+              />
+            ) : idea ? (
+              <IdeaDetail
+                key={idea.id}
+                idea={idea}
+                state={state}
+                busy={busy}
+                back={() => setSelectedIdea(null)}
+                edit={() => setModal({ kind: 'idea', id: idea.id })}
+                addImage={() =>
+                  setModal({ kind: 'idea-image', ideaId: idea.id })
+                }
+                editImage={(id) =>
+                  setModal({ kind: 'idea-image', ideaId: idea.id, id })
+                }
+                openPainting={openPainting}
+                mutate={mutate}
+                ask={ask}
               />
             ) : (
               <>
@@ -456,22 +493,33 @@ export default function Home() {
                     <h1>
                       {tab === 'paintings'
                         ? 'Meine Bilder'
-                        : tab === 'sessions'
-                          ? 'Malsitzungen'
-                          : 'Meine Statistik'}
+                        : tab === 'ideas'
+                          ? 'Meine Ideen'
+                          : tab === 'sessions'
+                            ? 'Malsitzungen'
+                            : 'Meine Statistik'}
                       <span className="heading-dot">.</span>
                     </h1>
                     <p className="muted">
                       {tab === 'paintings'
                         ? 'Jedes Bild hat seine Zeit. Hier hältst du sie fest.'
-                        : tab === 'sessions'
-                          ? 'Ein Pinselstrich nach dem anderen.'
-                          : 'Ein Blick auf die Zeit, die in deiner Kunst steckt.'}
+                        : tab === 'ideas'
+                          ? 'Sammle alles, was dein nächstes Bild inspiriert.'
+                          : tab === 'sessions'
+                            ? 'Ein Pinselstrich nach dem anderen.'
+                            : 'Ein Blick auf die Zeit, die in deiner Kunst steckt.'}
                     </p>
                   </div>
-                  <button className="primary" onClick={newPainting}>
+                  <button
+                    className="primary"
+                    onClick={
+                      tab === 'ideas'
+                        ? () => setModal({ kind: 'idea' })
+                        : newPainting
+                    }
+                  >
                     <Plus size={18} />
-                    Bild anlegen
+                    {tab === 'ideas' ? 'Idee anlegen' : 'Bild anlegen'}
                   </button>
                 </div>
                 <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
@@ -479,6 +527,10 @@ export default function Home() {
                     <TabsTrigger value="paintings">
                       <Images />
                       Bilder
+                    </TabsTrigger>
+                    <TabsTrigger value="ideas">
+                      <Lightbulb />
+                      Ideen
                     </TabsTrigger>
                     <TabsTrigger value="sessions">
                       <Clock3 />
@@ -489,26 +541,37 @@ export default function Home() {
                       Statistik
                     </TabsTrigger>
                   </TabsList>
-                  <div className="summary-grid">
-                    <div>
-                      <span>Gesamte Malzeit</span>
-                      <strong>{formatDuration(total)}</strong>
+                  {tab !== 'ideas' && (
+                    <div className="summary-grid">
+                      <div>
+                        <span>Gesamte Malzeit</span>
+                        <strong>{formatDuration(total)}</strong>
+                      </div>
+                      <div>
+                        <span>In Arbeit</span>
+                        <strong>
+                          {
+                            state.paintings.filter(
+                              (p) => p.status === 'working',
+                            ).length
+                          }{' '}
+                          <small>Bilder</small>
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Diese Woche</span>
+                        <strong>{formatDuration(weekTime)}</strong>
+                      </div>
                     </div>
-                    <div>
-                      <span>In Arbeit</span>
-                      <strong>
-                        {
-                          state.paintings.filter((p) => p.status === 'working')
-                            .length
-                        }{' '}
-                        <small>Bilder</small>
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Diese Woche</span>
-                      <strong>{formatDuration(weekTime)}</strong>
-                    </div>
-                  </div>
+                  )}
+                  <TabsContent value="ideas">
+                    <Ideas
+                      state={state}
+                      open={openIdea}
+                      add={() => setModal({ kind: 'idea' })}
+                      mutate={mutate}
+                    />
+                  </TabsContent>
                   <TabsContent value="paintings">
                     {state.paintings.length ? (
                       <div className="gallery">
@@ -658,7 +721,7 @@ export default function Home() {
           mutate={mutate}
           close={() => setModal(null)}
           done={(id) => {
-            setSelected(id);
+            openPainting(id);
             setModal(null);
           }}
         />
@@ -673,6 +736,30 @@ export default function Home() {
           ask={ask}
         />
       )}
+      {modal?.kind === 'idea' &&
+        (!modal.id || state.ideas.some((item) => item.id === modal.id)) && (
+          <IdeaEditor
+            key={modal.id ?? 'new-idea'}
+            existing={state.ideas.find((item) => item.id === modal.id)}
+            mutate={mutate}
+            close={() => setModal(null)}
+            done={(id) => {
+              openIdea(id);
+              setModal(null);
+            }}
+          />
+        )}
+      {modal?.kind === 'idea-image' &&
+        state.ideas.some((item) => item.id === modal.ideaId) && (
+          <IdeaImageEditor
+            key={modal.id ?? 'new-idea-image'}
+            idea={state.ideas.find((item) => item.id === modal.ideaId)!}
+            imageId={modal.id}
+            mutate={mutate}
+            close={() => setModal(null)}
+            ask={ask}
+          />
+        )}
       {modal?.kind === 'photo' &&
         state.paintings.some((p) => p.id === modal.paintingId) && (
           <PhotoEditor

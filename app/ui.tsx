@@ -153,9 +153,11 @@ export function Empty({
 export function PhotoPicker({
   value,
   onChange,
+  onLoadingChange,
 }: {
   value: string;
   onChange: (v: string) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -165,12 +167,14 @@ export function PhotoPicker({
     if (!file) return;
     setError('');
     setLoading(true);
+    onLoadingChange?.(true);
     try {
       onChange(await imageData(file));
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setLoading(false);
+      onLoadingChange?.(false);
     }
   };
   return (

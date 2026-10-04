@@ -1,5 +1,21 @@
 export type TimeRange = { start: number; end: number };
 export type Photo = { id: string; data: string; date: string; note: string };
+export type IdeaImage = Photo & { kind: 'reference' | 'sketch' };
+export type PaintingIdea = {
+  id: string;
+  title: string;
+  notes: string;
+  nextStep: string;
+  dimensions: string;
+  technique: string;
+  sourceUrl: string;
+  tags: string[];
+  favorite: boolean;
+  createdAt: number;
+  updatedAt: number;
+  images: IdeaImage[];
+  paintingId?: string;
+};
 export type Painting = {
   id: string;
   title: string;
@@ -108,6 +124,7 @@ export type ActiveTimer = {
 export type Atelier = {
   version: 1;
   paintings: Painting[];
+  ideas: PaintingIdea[];
   sessions: Session[];
   active: ActiveTimer | null;
   lastBackup: number | null;
@@ -115,10 +132,62 @@ export type Atelier = {
 export const freshAtelier = (): Atelier => ({
   version: 1,
   paintings: [],
+  ideas: [],
   sessions: [],
   active: null,
   lastBackup: null,
 });
+// Older local stores and backups do not have an ideas collection yet.
+export function withIdeas(state: Atelier): Atelier {
+  return { ...state, ideas: state.ideas ?? [] };
+}
+export function safeSourceUrl(value: string): boolean {
+  if (!value) return true;
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      ['http:', 'https:'].includes(url.protocol) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+export function paintingFromIdea(
+  state: Atelier,
+  ideaId: string,
+  paintingId: string,
+  now = Date.now(),
+): Atelier {
+  const idea = state.ideas.find((item) => item.id === ideaId);
+  if (!idea) throw new Error('Die Idee wurde inzwischen gelöscht.');
+  if (idea.paintingId)
+    throw new Error('Aus dieser Idee wurde bereits ein Bild angelegt.');
+  if (!paintingId || state.paintings.some((item) => item.id === paintingId))
+    throw new Error('Das Bild konnte nicht angelegt werden.');
+  return {
+    ...state,
+    paintings: [
+      ...state.paintings,
+      {
+        id: paintingId,
+        title: idea.title,
+        dimensions: idea.dimensions,
+        technique: idea.technique,
+        status: 'working',
+        createdAt: now,
+        photos: [],
+      },
+    ],
+    ideas: state.ideas.map((item) =>
+      item.id === ideaId
+        ? { ...item, paintingId, updatedAt: Math.max(now, item.createdAt) }
+        : item,
+    ),
+  };
+}
 export function localDate(time = Date.now()): string {
   const d = new Date(time);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -340,6 +409,58 @@ export function validateBackup(value: unknown): Atelier {
     )
       return fail();
   }
+  if (value.ideas !== undefined) {
+    if (!Array.isArray(value.ideas) || value.ideas.length > 10000)
+      return fail();
+    const ideaIds = new Set<string>();
+    const imageIds = new Set<string>();
+    for (const idea of value.ideas) {
+      if (
+        !record(idea) ||
+        !str(idea.id, 100) ||
+        !idea.id ||
+        ideaIds.has(idea.id) ||
+        !str(idea.title, 200) ||
+        !idea.title.trim() ||
+        !str(idea.notes) ||
+        !str(idea.nextStep, 2000) ||
+        !str(idea.dimensions, 200) ||
+        !str(idea.technique, 200) ||
+        !str(idea.sourceUrl, 2000) ||
+        !safeSourceUrl(idea.sourceUrl) ||
+        typeof idea.favorite !== 'boolean' ||
+        !finite(idea.createdAt) ||
+        !finite(idea.updatedAt) ||
+        idea.updatedAt < idea.createdAt ||
+        !Array.isArray(idea.tags) ||
+        idea.tags.length > 20 ||
+        !idea.tags.every((tag) => str(tag, 50) && tag.trim()) ||
+        new Set(idea.tags).size !== idea.tags.length ||
+        !Array.isArray(idea.images) ||
+        (idea.paintingId !== undefined &&
+          (!str(idea.paintingId, 100) || !ids.has(idea.paintingId)))
+      )
+        return fail();
+      ideaIds.add(idea.id);
+      for (const img of idea.images) {
+        if (
+          !record(img) ||
+          !str(img.id, 100) ||
+          !img.id ||
+          imageIds.has(img.id) ||
+          !str(img.data, 15000000) ||
+          !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(
+            img.data,
+          ) ||
+          !date(img.date) ||
+          !str(img.note) ||
+          !['reference', 'sketch'].includes(String(img.kind))
+        )
+          return fail();
+        imageIds.add(img.id);
+      }
+    }
+  }
   const sessionIds = new Set<string>();
   for (const s of value.sessions) {
     if (
@@ -380,5 +501,5 @@ export function validateBackup(value: unknown): Atelier {
       return fail();
   }
   if (value.lastBackup !== null && !finite(value.lastBackup)) return fail();
-  return structuredClone(value) as Atelier;
+  return withIdeas(structuredClone(value) as Atelier);
 }
